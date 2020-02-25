@@ -1,0 +1,453 @@
+#!/usr/bin/env node
+"use strict"
+/************************************************************
+ *<!--	            JS LAUNCHER TEMPLATE
+ *========================================================--> 
+ *    Launcher of the videochat <p> 
+ *    Common for all js projects.
+ *
+ *<p><b> USAGE: </b>
+ *      node www [-option] [value]
+ *      
+ *<p><b> OPTIONS: </b>
+ *
+ * <table> 
+ * <tr> <td>-h </td> 
+ *      <td>--help </td>
+ *      <td>Show this help</td>
+ *  </tr>
+ * <tr> <td>-f </td> 
+ *      <td>--file </td>
+ *      <td>Path+Name of .log file to use. Default: [./www.log] </td>
+ * <tr> <td>-t </td> 
+ *      <td>--type </td>
+ *      <td>Log file type {txt|xml|html}. Default: [txt] </td>
+  * <tr> <td>-l </td> 
+ *      <td>--level </td>
+ *      <td>Logging Level {debug|info|warn|error|fatal}. Default: [fatal] </td>      
+ * </tr>
+ * <tr> <td>-v </td> 
+ *      <td>--verbose </td>
+ *      <td>Verbose Mode on logs</td>      
+ * </tr>
+ *</table>
+ *      
+ *<!--====================================================-->
+ *   @date      28/11/2016                   
+ *   @author  	Cesar Delgado Gonzalez
+ ************************************************************/
+
+//**********************************************************
+//  GLOBAL ENVIRONMENT
+//**********************************************************
+
+/*
+* Module dependencies... 
+*     Each module is a prototype object within the server awaiting for runtime requests.
+*     Objects created with 'new' command inherit all methods and properties of the prototype.     
+*/
+try {
+
+	var 
+		   getOpt  = require('yargs')   
+		, Trazador = require('./utils/trazador.js')
+		, Server   = require('./communication/listener.js');
+	
+} catch (e) {
+	
+	  // Logging System still not working, console printing	
+	  console.log("[www.main()] - FATAL: Not able to load modules. Exiting.");
+	  console.error("[www.main()] - FATAL: Not able to load modules. Exiting.");
+	  console.error(e);
+	  console.error(e.stack);
+	  process.exit(0);
+}
+
+/*
+* Private static environment 
+*  1.- Pointer to the listener process
+*  2.- Arguments of the call
+*/
+
+/**
+ * Pointer to listener server
+ **/ 
+var listen = null;
+
+/**
+ * Pointer to logger
+ **/ 
+var traza  = null;
+
+
+/**
+ * Listening Port 
+ **/ 
+var port=Number('3000');
+
+/**
+ * Log file name
+ **/ 
+var logFile='www.log';
+
+/**
+ * Log type
+ **/ 
+var logType='txt';
+
+/**
+ * Logging level
+ **/ 
+var logLevel=Number('5');
+
+/**
+ * Verbose mode: long or short log lines
+ **/ 
+var verboseMode='false';
+
+
+//**********************************************************
+// PRIVATE FUNCTIONS: parameters capture
+//**********************************************************
+
+//------------------------------------------------
+//              DEFINE ARGUMENTS
+//      private static defineArguments() 
+//------------------------------------------------               
+//   Arguments of the call
+//------------------------------------------------
+function defineArguments() {
+	
+	// ------------LOCAL ENVIRONMENT ------------
+	
+	// It shouldn't change much between projects
+	var defineHelp=
+        "\n*******************************************************" +
+		"\n               JS APPS OPTIONS               " +
+		"\n*******************************************************\n\n" +
+        " $0 [[-option] [argument]] \n" +
+        "   -h --help:.....[false]-------------------------------Show this help \n" +
+        "   -p --port:.....[3000]--------------------------------Listening Port  \n" +
+        "   -f --file:.....[www.log]-----------------------------Log File Name  \n" +  
+        "   -t --type:.....{[txt]|xml|html}----------------------Log Type  \n" +  
+        "   -l --level:....{debug|info|warn|error|[fatal]}-------Log Level  \n" +  				        
+        "   -v --verbose:..[false]-------------------------------Long log lines  \n" + 
+        "\n*******************************************************" +
+		"\n ANT: options are defined this way: ${opt1} ...${optn} " +
+		"\n*******************************************************\n"
+	
+	
+	// ----------------- ACTIONS ----------------	
+	try {
+		
+		// 1.- Setup options
+		//-------------------
+		getOpt.options(
+			 'help', {
+				alias: 'h',
+			    describe: 'Show help.',
+			    type: 'boolean',
+			    default: 'false',		   
+			 },
+			 
+			 'port', {
+			    alias: 'p',  	
+			    describe: 'Listening Port.',
+			    type: 'string',
+			    default: '3000',	   
+			  },
+			  
+			 'type', {
+				alias: 't',				  	
+				describe: 'Log File Type.',
+				type: 'string',
+			    default: 'txt',								
+			  },	
+			  
+			 'file', {
+				alias: 'f',				  	
+				describe: 'Log File Name.',
+				type: 'string',
+			    default: 'www.log',								
+			  },			  
+			  
+			 'verbose', {
+				alias: 'v',				  
+				describe: 'LOGS: long messages active.',
+				type: 'boolean',
+			    default: 'false',
+			 },		  
+			  
+			 'level', {
+				alias: 'l',
+				describe: 'LOGS: logging level {trace|debug|info|warn|error|fatal}',
+				type: 'string',
+			    default: 'fatal',
+			 });	
+		
+		// 2.- Setup Help
+		//----------------
+		getOpt.usage(defineHelp);
+		
+	} catch (e) {
+	  console.log("[www.defineArguments()] - ERROR: Arguments definition is wrong");
+	  console.log(e);
+	}
+}
+
+//------------------------------------------------
+//             VALIDATE PARAMETERS
+//      private static validateParameters() 
+//------------------------------------------------               
+//   Validate all input parameters
+//------------------------------------------------
+function validateParameters() {
+	
+	// ----------------- LOCAL ENVIRONMENT ----------------	
+	var inputPort, inputLogFile, inputLogType, inputLogLevel;
+	
+	// ----------------- ACTIONS ----------------	
+	try {		
+		
+		// 1.- Capture Input Parameters
+		//-------------------------------
+		if(getOpt.argv.h) {getOpt.showHelp(); process.exit(1);}
+		if(typeof getOpt.argv.p != 'undefined') {inputPort=getOpt.argv.p;}
+		if(typeof getOpt.argv.f != 'undefined') {inputLogFile=getOpt.argv.f.toLowerCase();}
+		if(typeof getOpt.argv.t != 'undefined') {inputLogType=getOpt.argv.t.toLowerCase();}
+		if(typeof getOpt.argv.l != 'undefined') {inputLogLevel=getOpt.argv.l.toLowerCase();}
+		if(typeof getOpt.argv.v != 'undefined') {verboseMode=true;}
+		
+		// 2.- Format Input Parameters
+		//-------------------------------
+		// 2.1.- Transform port to Number
+		if(inputPort != null) {  
+			if(Number(inputPort) != 'NaN') { port=Number(inputPort); }
+		} else {
+			if (typeof process.env.PORT != 'undefined') {		
+				if(Number(process.env.PORT) != 'NaN') {port=Number(process.env.PORT);} 
+			}
+		}
+
+		// 2.2.- Logs can be {TXT, XML, HTML}
+		if(inputLogType != null) {  
+			if (inputLogType =='txt' || inputLogLevel =='xml' || inputLogLevel =='html') {
+				logLevel=inputLogLevel;
+			} 
+		}
+
+		
+		// 2.3.- Log level can be {TRACE, DEBUG, INFO, WARN, ERROR, FATAL}
+		if(inputLogLevel != null) {
+			// FATAL is already set... if we get other known value, we use it, otherwise, keep default value
+			if ((inputLogLevel =='trace') || (inputLogLevel =='debug') || (inputLogLevel =='info') || (inputLogLevel =='warn') || (inputLogLevel =='error')) {
+				logLevel=inputLogLevel;
+			}
+		}
+		
+		// 2.4.- Log File treatment
+		// ... Nothing yet, it should:
+		//    a) Path........ {validate or force} an existing path
+		//    b) Extension... according to log type
+		if(inputLogFile != null) {  		
+			logFile=inputLogFile;
+		}		
+		
+		// 3.- Log Input Parameters
+		//------------------------		
+		
+	} catch (e) {
+		  console.log("[www.validateParameters()] - ERROR: Validating parameters");
+		  console.log(e);
+	}	
+}
+
+
+//------------------------------------------------
+//        PARAMETERS CAPTURE
+//   private static parametersCapture() 
+//------------------------------------------------               
+//     Capture and process parameters
+//------------------------------------------------
+function parametersCapture() {
+	
+	// ----------------- ACTIONS ----------------	
+	try {	
+	
+		// 1.- Initializations
+		//----------------------
+		defineArguments();
+				
+		// 2.- Capture parameters
+		//------------------------
+		validateParameters();
+		    		
+	} catch (e) {
+		  console.log("[www.parametersCapture()] - ERROR: Processing parameters");
+		  console.log(e);
+	}	
+}
+
+//**********************************************************
+//       PRIVATE FUNCTIONS: logger setup
+//**********************************************************
+
+//------------------------------------------------
+//			SETUP LOGGING SYSTEM
+//     private static setupLoggingSystem() 
+//------------------------------------------------               
+//Capture and process parameters
+//------------------------------------------------
+function  setupLoggingSystem() {
+
+	// ----------------- LOCAL ENVIRONMENT ----------------	
+	
+	
+	// ----------------- ACTIONS ----------------	
+	try {	
+			
+		// 1.- Create root static logger
+		//------------------------------
+		traza=new Trazador(logLevel);
+		
+		// 2.- Capture parameters
+		//------------------------	 	
+		traza.print ("0", "www.setupLoggingSystem()", "Launcher Input Parameters"); 	
+		traza.print ("0", "www.setupLoggingSystem()", ".........port = [" + port + "]; type=[" + typeof port + "]"); 	
+		traza.print ("0", "www.setupLoggingSystem()", "......logFile = [" + logFile + "]; type=[" + typeof logFile +"]"); 	
+		traza.print ("0", "www.setupLoggingSystem()", "......logType = [" + logType + "]; type=[" + typeof logType +"]"); 	
+		traza.print ("0", "www.setupLoggingSystem()", ".....logLevel = [" + logLevel + "]; type=[" + typeof logLevel +"]"); 	    	
+		traza.print ("0", "www.setupLoggingSystem()", "..verboseMode = [" + verboseMode + "]; type=[" + typeof verboseMode +"]"); 	  
+		
+	} catch (e) {
+		console.log("[www.setupLoggingSystem()] - WARN: Unable to setup logger, using root logger with default settings.");	  
+		console.log(e.stack);
+	}		
+}
+
+//**********************************************************
+//  PRIVATE FUNCTIONS: main tasks of the launcher
+//**************************************************
+
+//------------------------------------------------
+//				INIT SYSTEM
+//		private static initSystem() 
+//------------------------------------------------               
+//	1.- Start Logger 
+//	2.- Capture Input Parameters
+//------------------------------------------------
+function initSystem() {
+
+	// ------------------- ACCIONES ------------------  
+	try {
+			
+		// 0.-Parameters Capturing
+		//--------------------------	
+		parametersCapture();
+		
+		// 1.- Basic Configuration for Main Logger
+		//---------------------------------------------------
+		setupLoggingSystem()
+		
+	} catch (e) {
+	
+		// Logging System still not working, console printing	
+		console.log("[www.initSystem()] - WARN: Not able to initializate the system.");
+		console.error("[www.initSystem()] - WARN: Not able to initializate the system.");
+		console.error(e);
+		console.error(e.stack);
+	}	
+}
+
+//------------------------------------------------
+//	           START LISTENER
+//     private static startListener() 
+//------------------------------------------------               
+//    Run listener process of the web server
+//------------------------------------------------
+function startListener() {
+
+	// ------------ LOCAL ENVIRONMENT -----------		
+	var properties;
+	
+	// ----------------- ACTIONS ----------------	
+	try {
+		
+		// 1.- Create Listener
+		//------------------------------
+		properties= {
+			   'httpPorts'     : [ Number(port)   ]
+		   	 , 'httpsPorts'    : [ Number(port)+1 ]
+			 , 'traza'     : traza
+		}
+		
+		listen=new Server(traza);
+		listen.init(properties);
+		
+		// 2.- Start Listener
+		//------------------------------
+		traza.debug( "www.startListener()", "WWW - Starting the listener"); 			
+		listen.start();
+		
+	} catch (e) {
+		traza.print (Trazador.FATAL, "www.startListener()", "Unable to start de Listener Server. Exiting"); 	
+		traza.error("5",e);
+	}		
+	 
+}
+
+//**********************************************************
+//   PUBLIC FUNTIONS
+//**********************************************************
+
+/*******************************************************
+ *<!--                 MAIN                
+ *======================================================-->
+ *
+ *<p><b> USAGE: </b>
+ *      node www [-option] [value]
+ *      
+ *<p><b> OPTIONS: </b>
+ *
+ * <table> 
+ * <tr> <td>-h </td> 
+ *      <td>--help </td>
+ *      <td>Show this help</td>
+ *  </tr>
+ * <tr> <td>-f </td> 
+ *      <td>--file </td>
+ *      <td>Path+Name of .log file to use. Default: [./www.log] </td>
+ * <tr> <td>-t </td> 
+ *      <td>--type </td>
+ *      <td>Log file type {txt|xml|html}. Default: [txt] </td>
+  * <tr> <td>-l </td> 
+ *      <td>--level </td>
+ *      <td>Logging Level {trace|debug|info|warn|error|fatal}. Default: [fatal] </td>      
+ * </tr>
+ * <tr> <td>-v </td> 
+ *      <td>--verbose </td>
+ *      <td>Verbose Mode on logs</td>      
+ * </tr>
+ *</table> 
+ *
+ * @param {args} Arguments
+ ******************************************************/
+try {
+	
+    // 1.- Init the system
+	//-----------------------------	
+	initSystem();  	
+	
+    // 2.- Launch Listener of the server
+	//-----------------------------	
+	startListener();  
+
+} catch (e) {
+	
+	// Not sure if logging system is up and running... using console system.
+	console.log("[www.main()] - ERROR: Unable to start listener. Exiting. Please see errors log for more details.");
+	console.error("[www.main()] - ERROR: Unable to start listener. Exiting.");
+	console.error(e);
+	console.error(e.stack);
+	process.exit(0);
+}	

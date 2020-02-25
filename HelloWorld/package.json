@@ -1,0 +1,11 @@
+{
+
+  "name": "helloworld"
+  , "version": "0.0.1"
+  , "private": true
+  , "scripts"     : {
+    "start"          : "node ./test/server.js"
+    }
+  , "dependencies": {
+  }
+}

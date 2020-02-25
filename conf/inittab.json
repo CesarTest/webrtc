@@ -1,0 +1,9 @@
+[
+		[
+ 			{
+		         "path"      : "../service/feature/conversation"
+				, "instances" : "1"
+		    	, "config"    : ""
+			}
+		]
+]

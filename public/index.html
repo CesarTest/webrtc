@@ -1,0 +1,128 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 5.0 Transitional//EN" "http://www.w3.org/TR/REC-html50/loose.dtd">
+<HTML>
+	<HEAD>
+		<TITLE>WebRTC Video-Chat</TITLE>
+		<LINK rel="StyleSheet" href="./css/basico.css" >
+		<link rel="StyleSheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+		<script src="//cdn.socket.io/socket.io-1.4.5.js"></script>
+		<script src='//code.jquery.com/jquery-1.8.0.min.js' type='text/javascript'></script>
+		<script src='./js/filestream.js' type='text/javascript'></script>
+		<script src='./js/sessionrtc.js' type='text/javascript'></script>	
+		<script src='./js/wschannel.js' type='text/javascript'></script>
+		<script src='./js/ui.js' type='text/javascript'></script>
+		<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>    		
+ 	</HEAD>
+	<BODY>
+	
+		<!-- ============= 1.- HTML Server: serving static contents  ============== -->	
+		<!--  This Server handle HTTP/HTTPS events (called Listener in the blueprints).-->
+		
+		<!-- ============= 2.- Signalling Server: bringing HTML to life ========== -->
+		<!--  This Server is controlling Pools: conversations and rooms (daemon behind page).    -->
+		<!--  Please, check server blueprints to see how interactivity is achieved -->
+		
+		<!-- == 2.1.- CONVERSATION: Video Container where p2p conferences will be allocated   -->
+		<!-- ......... 2.1.- Observer: Signalling Server plugs conversations to this pannel   -->
+		<!-- ......... 2.2.- Inside Observer, Events are distributed in two roles:            -->
+		<!--                  2.2.1.- WsChannel: browser to server connection                 -->
+		<!--                  2.2.2.- SessionRTP: browser to browser connection               -->
+		<div id="conversation-title" class="conversation-title"></div>
+		<div id="video-container" class="video-container">
+		
+			<!-- === ----- Local Stream ----- == -->
+			<div id="local-stream-container" class="stream-container">
+				<video id="localVideo" autoplay muted class="multimedia-stream"></video>
+				<div id="local-stream-controls" class="stream-controls">
+				</div>
+			</div>
+
+			<!-- === ----- Remote Stream ----- == -->
+			<div id="remote-stream-container" class="stream-container">
+			 	<video id="remoteVideo" autoplay class="multimedia-stream"></video>
+				<div id="remote-stream-controls" class="stream-controls">
+				</div>
+			 </div>			
+
+			<!-- === ----- Data Channel ----- == -->
+			<div id="datachannel-container" class="datachannel-container">
+				<div class="datachannel">
+				
+					<!-- == File List Zone  == -->
+					<output id="list-files" class="chat-messages"></output>					
+				
+					<!-- == File Browser Zone   == -->
+					<input type="file" id="files-datachannel" name="files-datachannel[]" multiple/>
+					<input id="file-datachannel" type="button"   value='Send Files'/>
+					<div id="progress_bar">
+						<div id="name-file" class="chat-messages"></div>
+						<div class="percent">0%</div>
+					</div>
+					<a id="download" class="doc"></a>
+				
+					<!-- == Chat 1-1 Zone   == -->
+					<div id="title" class="title">Chat Privado</div>
+					<div id="private-messages" class="chat-messages"></div>
+					<input id='private-message' />					
+					<input id="send-datachannel"  type="button"  value='Private'/>
+													
+				</div>			 	
+ 			</div>
+
+		</div>
+		
+		<!-- == 2.2.- ROOM: Chat Container == -->		
+		<!-- ......... 2.1.- Assign rooms to users  -->
+		<!-- ......... 2.2.- Handle room messages  -->
+		<div id="room-title" class="room-title"></div>
+		<div id="chat-container" class="chat-container">
+		
+			<!-- === ----- Messages ----- == -->
+			<div id="chat-main" class="chat-main">
+			
+			     <!-- Messages Board -->			
+				<div id='room' class='title'></div>
+				<div id="messages" class="chat-messages"></div>
+				
+			     <!-- Messages Form -->				
+				<div id="chat-input" class="chat-input">
+				  <form id='send-form'>
+					<input id='send-message' />
+					<input id='send-button' type='submit' value='Send' class="ui-button ui-widget ui-corner-all"/>
+					<div id='help'>
+					  <ul>
+						<li>Change nickname: <code>/nick [username]</code></li>
+						<li>Join/create room: <code>/join [room name]</code></li>
+					  </ul>
+					</div>
+				  </form>
+				</div>				
+			</div>
+			
+			<!-- === ---- Rooms and Users ---- == -->			
+			<div id="chat-meta" class="chat-meta">
+			
+			     <!-- Rooms -->	
+				<div id="title" class="title">Salas</div>
+				<div id="chat-rooms" class="chat-rooms">
+					<select id="rooms" name="rooms" size="5" style="width: 100%">
+					</select>      
+				</div>
+				
+			     <!-- Users -->		
+				<div id="title" class="title">Usuarios</div>				 
+				<div id="chat-users" class="chat-users">
+					<div id='room-mates'">
+						<select id="peers" name="peers" size="9" style="width: 100%">
+						</select>                
+					</div>         
+					<input id='video' type='submit' value='Video-Conference' class="ui-button ui-widget ui-corner-all"/>  
+					 <div id="dialog-confirm" title="Incoming Call">
+						<p><span class="ui-icon ui-icon-alert" style="float:left; margin:12px 12px 20px 0;"></span>Do you accept incoming call?</p>
+						
+					 </div>					
+				</div>
+			</div>
+		</div>		
+	</BODY>
+</HTML>   
+   

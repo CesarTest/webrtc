@@ -1,0 +1,283 @@
+<?xml version="1.0"?>
+<project name="lab.cloud.node" default="Launch" basedir=".">
+
+	<!-- ========================================================= -->
+	<!--                    GLOBAL ENVIRONMENT                     -->
+	<!-- ========================================================= -->
+
+	<!-- ================= Common to all projects ================ -->
+	<!-- ... 1.- Project Folders  -->
+	<property name="server"    location="bin"/>
+	<property name="package"   location="package.json"/>
+	<property name="lib"       location="node_modules"/>
+	<property name="logs"  	   location="logs"/>
+	<property name="config"    location="conf"/>
+	<property name="resources" location="opt"/>
+	<property name="tests"     location="tests"/>
+	<property name="docServer" location="doc/server"/>
+	<property name="docClient" location="doc/client"/>
+
+	<!-- ... 2.- Node Folders (missing automatic detection)  -->
+	<property name="nodeExec"     value="node"/>
+	<property name="nodeOptions"  value="--harmony"/>
+	<property name="npmExec"      value="npm"/>
+	<property name="npmOptions"   value="install"/>
+
+	<!-- ... 3.- JSDoc Folders (missing automatic detection)  -->
+	<property name="jsDocLocalPath" location="${lib}/.bin"/>
+	<property name="jsDocLocalExec"  location="${jsDocLocalPath}/jsdoc"/>
+	<property name="jsDocGlobalPath" location="/usr/local/lib/node_modules/jsdoc"/>
+	<property name="jsDocExec"       location="${jsDocGlobalPath}/jsdoc.js"/>
+	<property name="jsDocConf"       location="${config}/jsdoc.json"/>
+
+	<!-- =============== Specific to this project =============== -->
+	<property name="test"      location="bin/listener/server.js"/>
+	<property name="client"    location="public/js"/>
+	<property name="launchScript" value="${server}/www"/>
+	<property name="package"      value="LabDialoga"/>
+
+	<!-- =============== Not Used, sytax reminder =============== -->
+	<available file="${jsDocLocalExec}.cmd" property="jsDoc.windows"/>
+	<available file="${jsDocExec}"          property="jsDoc.unix"/>
+
+	<!-- Launching options: -p <port> -f <logFile> -t <logType> -l <logLevel> -v -h -->
+	<property name="logFile"     value="" />
+	<property name="logType"     value="" />
+	<property name="logLevel"    value="-l trace" />
+	<property name="verbose"     value="-v" />
+	<property name="port"        value="-p 4001" />
+	<property name="help"        value="" />
+
+	<!-- ======================================================== -->
+	<!--         COMMON SECTION : SAME FOR ALL PROJECTS           -->
+	<!-- ======================================================== -->
+
+	<!-- ================== TimeStamp =================== -->
+	<target name="init">
+		<echo>.....INIT: timestamping" </echo>
+		<tstamp/>
+	</target>
+
+	<!-- ================== OS Detection ================= -->
+	<target name="CheckOS" depends="init">
+	    <condition property="isWindows">
+	        <os family="windows" />
+	    </condition>
+
+	    <condition property="isUnix">
+	        <os family="unix" />
+	    </condition>
+	</target>
+
+
+	<!-- ================== Cleaning Environment =================== -->
+    <target name="CleanLogs" depends="init" description="Cleaning log files">
+			<echo>+ ============================================= </echo>
+			<echo>+ CLEANING: logs, docs... "${package}"          </echo>
+			<echo>+ ============================================= </echo>
+	        <delete dir="${logs}" />
+	        <mkdir  dir="${logs}" />
+    </target>
+
+	<!-- =================== Stop Windows Server ================== -->
+	<target name="winShutdown" depends="CheckOS" if="isWindows" description="Shutdown the server in Windows">
+		<echo>+ =============================================  </echo>
+		<echo>+ SHUTDOWN Server in Windows........    "        </echo>
+		<echo>+ ->Task:    taskkill /f /t /im ${nodeExec}.exe" </echo>
+		<echo>+ =============================================  </echo>
+	    <exec osfamily="windows" executable="taskkill">
+	            <arg line="/f /t /im ${nodeExec}.exe"/>
+	    </exec>
+	</target>
+
+	<!-- =================== Stop Unix Server ================== -->
+	<target name="unixShutdown" depends="CheckOS" if="isUnix" description="Shutdown the server in Unix">
+		<echo>+ =============================================  </echo>
+		<echo>+ SHUTDOWN Server in Unix........    "        </echo>
+		<echo>+ ->Task:   ps -fu centos | grep node | grep www | awk '{print $2}' | xargs kill -9 </echo>
+		<echo>+ =============================================  </echo>
+	    <exec osfamily="unix" executable="/bin/bash" >
+	    		<arg value="-c"/>
+	            <arg value="ps -fu centos | grep node | grep www | awk '{print $2}' | xargs kill -9"/>
+	    </exec>
+	</target>
+
+	<!-- ================ Stop server, Windows or Unix =============== -->
+	<target name="shutdown" description="Shutdown the server, in Windows or Unix"
+	    depends="unixShutdown, winShutdown">
+	</target>
+
+	<!-- ================ Install Wuindows Dependencies =============== -->
+	<target name="winInstallDependencies" depends="CheckOS"  if="isWindows" description="Install Dependencies in Windows">
+		<echo>+ ============================================= </echo>
+		<echo>+ INSTALL Dependencies in Windows... "     </echo>
+		<echo>+ ->Executable: Node....... ${npmExec}"        </echo>
+		<echo>+ ->Options: .............. ${npmOptions}"     </echo>
+		<echo>+ ============================================= </echo>
+		<exec executable="cmd" failonerror="true" dir="${basedir}">
+		    <arg value="/c"/>
+		    <arg value="${npmExec} ${npmOptions}"/>
+			<arg value="-p"/>
+		</exec>
+	</target>
+
+	<!-- ================ Install Unix Dependencies =============== -->
+	<target name="unixInstallDependencies" depends="CheckOS" if="isUnix" description="Install Dependencies in Unix">
+		<echo>+ ============================================= </echo>
+		<echo>+ INSTALL Dependencies in Unix... "     </echo>
+		<echo>+ ->Executable: Node....... ${npmExec}"        </echo>
+		<echo>+ ->Options: .............. ${npmOptions}"     </echo>
+		<echo>+ ============================================= </echo>
+		<exec executable="bash" failonerror="true" dir="${basedir}">
+			<arg value="-p"/>
+		    <arg value="${npmExec} ${npmOptions}"/>
+
+		</exec>
+	</target>
+
+	<!-- ================ Install Dependencies =============== -->
+	<target name="installDependencies" description="Install Dependencies, in Windows or Unix"
+	    depends="unixInstallDependencies, winInstallDependencies">
+	</target>
+
+	<!-- ======================================================== -->
+	<!--   SPECIFIC SECTION : DIFFERENT FROM PROJECT TO PROJECT   -->
+	<!-- ======================================================== -->
+
+	<!-- =================== Launching Project ================== -->
+	<target name="Launch" depends="init" description="Launching Node.js video chat">
+
+		<echo>+ ============================================= </echo>
+		<echo>+ LAUNCHING Server........ ${launchScript}"     </echo>
+		<echo>+ ->Executable: Node....... ${nodeExec}"        </echo>
+		<echo>+ ->Options: .............. ${nodeOptions}"     </echo>
+		<echo>+ ->Param: Listening Port.. "${port}"           </echo>
+		<echo>+ ->Param: Logging File.... "${logFile}"        </echo>
+		<echo>+ ->Param: Logging Type.... "${logType}"        </echo>
+		<echo>+ ->Param: Logging Level... "${logLevel}"       </echo>
+		<echo>+ ->Param: Verbose Mode.... "${verbose}"        </echo>
+		<echo>+ ->Param: Help............ "${help}"           </echo>
+		<echo>+ ============================================= </echo>
+		<exec executable="${nodeExec}">
+			<arg value="${nodeOptions}"/>
+			<arg value="${launchScript}"/>
+			<arg value="${help}"/>
+	        <arg value="${port}"/>
+			<arg value="${logFile}"/>
+			<arg value="${logType}"/>
+			<arg value="${logLevel}"/>
+    		<arg value="${verbose}"/>
+		</exec>
+
+	</target>
+
+	<!-- ================ Cleaning Server Documentation ============== -->
+    <target name="CleanDocServer" depends="init"
+    	    description="Cleaning Server Documentation ...">
+			<echo>+ =============================================     </echo>
+			<echo>+ CLEANING JSDOC Server documents... "${docServer}" </echo>
+			<echo>+ =============================================     </echo>
+    	    <delete dir="${docServer}"/>
+    	    <mkdir  dir="${docServer}"/>
+    </target>
+
+	<!-- ================ Cleaning Client Documentation ============== -->
+    <target name="CleanDocClient" depends="init"
+    	    description="Cleaning Client Documentation ...">
+			<echo>+ =============================================     </echo>
+			<echo>+ CLEANING JSDOC Client documents... "${docClient}" </echo>
+			<echo>+ =============================================     </echo>
+    	    <delete dir="${docClient}"/>
+    	    <mkdir  dir="${docClient}"/>
+    </target>
+
+
+	<!-- ================ Windows Server Documentation =============== -->
+	<target name="winDocServer" depends="CleanDocServer, CheckOS"  if="isWindows"
+	                       description="Generating Server Documentationin Windows ...">
+		<echo>+ ============================================= </echo>
+		<echo>+ WINDOWS - GENERATING JSDOC SEVER documents...           </echo>
+		<echo>+ ${jsDocLocalExec}.cmd -r ${server} --configure ${jsDocConf} --destination ${docServer} --debug</echo>
+		<echo>+ ---------------------------------------------  </echo>
+		<echo>+ Description:                                   </echo>
+		<echo>+ ->JSDoc Exec..........  "${jsDocLocalExec}" </echo>
+		<echo>+ ->JSDoc Conf..........  "${jsDocConf}"         </echo>
+		<echo>+ ->InputFolder Folder..  "${server}"            </echo>
+		<echo>+ ->Output Folder.......  "${docServer}"         </echo>
+		<echo>+ =============================================  </echo>
+		<exec executable="cmd" failonerror="true" dir="${server}">
+		    <arg value="/c"/>
+		    <arg value="${jsDocLocalExec}.cmd --recurse ${server} --configure ${jsDocConf} --destination ${docServer} --debug --package ${package}"/>
+			<arg value="-p"/>
+		</exec>
+	</target>
+
+	<!-- ================ Unix Server Documentation =============== -->
+	<target name="unixDocServer" depends="CleanDocServer, CheckOS" if="isUnix"
+	                       description="Generating Server Documentation in Unix ...">
+		<echo>+ ============================================= </echo>
+		<echo>+ UNIX - GENERATING JSDOC SEVER documents...           </echo>
+		<echo>+ ${jsDocExec} -r ${server} --configure ${jsDocConf} --destination ${docServer} --debug --package ${package}</echo>
+		<echo>+ ---------------------------------------------  </echo>
+		<echo>+ Description:                                   </echo>
+		<echo>+ ->JSDoc Exec..........  "${jsDocExec}"         </echo>
+		<echo>+ ->JSDoc Conf..........  "${jsDocConf}"         </echo>
+		<echo>+ ->InputFolder Folder..  "${server}"            </echo>
+		<echo>+ ->Output Folder.......  "${docServer}"         </echo>
+		<echo>+ =============================================  </echo>
+		<exec executable="bash" failonerror="true" dir="${server}">
+			 <arg value="-c"/>
+		    <arg value="${jsDocExec} --recurse ${server} --configure ${jsDocConf} --destination ${docServer} --debug --package ${package}"/>
+		</exec>
+	</target>
+
+	<!-- ================ Windows Client Documentation =============== -->
+	<target name="winDocClient" depends="CleanDocClient, CheckOS"  if="isWindows"
+	                       description="Generating Client Documentation in Windows...">
+		<echo>+ ============================================= </echo>
+		<echo>+ WINDOWS - GENERATING JSDOC CLIENT documents...           </echo>
+		<echo>+ ${jsDocLocalExec}.cmd --recurse ${client} --configure ${jsDocConf} --destination ${docServer} --debug --package ${package}</echo>
+		<echo>+ ---------------------------------------------  </echo>
+		<echo>+ Description:                                   </echo>
+		<echo>+ ->JSDoc Exec..........  "${jsDocLocalExec}" </echo>
+		<echo>+ ->JSDoc Conf..........  "${jsDocConf}"         </echo>
+		<echo>+ ->InputFolder Folder..  "${client}"            </echo>
+		<echo>+ ->Output Folder.......  "${docClient}"         </echo>
+		<echo>+ =============================================  </echo>
+		<exec executable="cmd" failonerror="true" dir="${client}">
+		    <arg value="/c"/>
+		    <arg value="${jsDocLocalExec}.cmd --recurse ${client} --configure ${jsDocConf} --destination ${docClient} --debug --package ${package}"/>
+			<arg value="-p"/>
+		</exec>
+	</target>
+
+	<!-- ================ Unix Client Documentation =============== -->
+	<target name="unixDocClient" depends="CleanDocClient, CheckOS" if="isUnix"
+	                       description="Generating Server Documentation in Unix...">
+		<echo>+ ============================================= </echo>
+		<echo>+ UNIX - GENERATING JSDOC SEVER documents...           </echo>
+		<echo>+ ${jsDocExec} --recurse ${client} --configure ${jsDocConf} --destination ${docClient} --debug --package ${package}</echo>
+		<echo>+ ---------------------------------------------  </echo>
+		<echo>+ Description:                                   </echo>
+		<echo>+ ->JSDoc Exec..........  "${jsDocExec}"         </echo>
+		<echo>+ ->JSDoc Conf..........  "${jsDocConf}"         </echo>
+		<echo>+ ->InputFolder Folder..  "${client}"            </echo>
+		<echo>+ ->Output Folder.......  "${docClient}"         </echo>
+		<echo>+ =============================================  </echo>
+		<exec executable="bash" failonerror="true" dir="${server}">
+			 <arg value="-c"/>
+		    <arg value="${jsDocExec} --recurse ${client} --configure ${jsDocConf} --destination ${docClient} --debug --package ${package}"/>
+		</exec>
+	</target>
+
+	<!-- ================ Server Documentation =============== -->
+	<target name="DocServer" description="Generate Documentation, in Windows or Unix"
+	    depends="unixDocServer, winDocServer">
+	</target>
+
+	<!-- ================ Client Documentation =============== -->
+	<target name="DocClient" description="Generate Documentation, in Windows or Unix"
+	    depends="unixDocClient, winDocClient">
+	</target>
+
+</project>
